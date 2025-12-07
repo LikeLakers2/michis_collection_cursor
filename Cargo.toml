@@ -11,11 +11,17 @@ keywords = ["collection", "cursor", "collection_cursor", "head"]
 categories = ["data-structures"]
 
 [dependencies]
+arrayvec = { version = "0.7", optional = true, default-features = false }
+smallvec = { version = "1", optional = true, default-features = false }
 
 [features]
 default = ["alloc"]
 # Adds trait implementations for some collection types in the `alloc` crate
 alloc = []
+# Adds trait implementations for the `arrayvec@0.7` crate
+arrayvec = ["dep:arrayvec"]
+# Adds trait implementations for the `smallvec@1` crate
+smallvec = ["dep:smallvec"]
 
 [lints]
 clippy.allow_attributes_without_reason = "forbid"
