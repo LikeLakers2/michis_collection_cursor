@@ -1,6 +1,6 @@
 #![no_std]
 
-mod indexable_collection_impls;
+mod trait_impls_by_crate;
 
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CollectionCursor<Tape> {
