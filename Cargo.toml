@@ -2,6 +2,7 @@
 name = "michis_collection_cursor"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.91"
 
 description = "A cursor which wraps an indexable collection, providing a movable position which points to an index of the collection. Useful for things like history, undo-redo systems, or timelines."
 readme = true
@@ -16,7 +17,7 @@ smallvec = { version = "1", optional = true, default-features = false }
 
 [features]
 default = ["alloc"]
-# Adds trait implementations for some collection types in the `alloc` crate
+# Adds trait implementations for the built-into-Rust `alloc` crate
 alloc = []
 # Adds trait implementations for the `arrayvec@0.7` crate
 arrayvec = ["dep:arrayvec"]
@@ -35,7 +36,7 @@ clippy.missing_errors_doc = "warn"
 clippy.missing_panics_doc = "forbid"
 clippy.missing_safety_doc = "forbid"
 
-# Try to use alloc and core where possible
+# We are no-std by default, so try to use `core`, then `alloc`, then `std`.
 clippy.alloc_instead_of_core = "forbid"
 clippy.std_instead_of_alloc = "forbid"
 clippy.std_instead_of_core = "forbid"
