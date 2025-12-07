@@ -2,9 +2,9 @@ extern crate alloc;
 
 use alloc::collections::VecDeque;
 
-use crate::{TapeLike, TapeLikeMut};
+use crate::{IndexableCollection, IndexableCollectionMut};
 
-impl<T> TapeLike for Vec<T> {
+impl<T> IndexableCollection for Vec<T> {
 	type Item = T;
 
 	fn len(&self) -> usize {
@@ -16,7 +16,7 @@ impl<T> TapeLike for Vec<T> {
 	}
 }
 
-impl<T> TapeLikeMut for Vec<T> {
+impl<T> IndexableCollectionMut for Vec<T> {
 	fn get_item_mut(&mut self, index: usize) -> Option<&mut Self::Item> {
 		self.get_mut(index)
 	}
@@ -34,7 +34,7 @@ impl<T> TapeLikeMut for Vec<T> {
 	}
 }
 
-impl<T> TapeLike for VecDeque<T> {
+impl<T> IndexableCollection for VecDeque<T> {
 	type Item = T;
 
 	fn len(&self) -> usize {
@@ -46,7 +46,7 @@ impl<T> TapeLike for VecDeque<T> {
 	}
 }
 
-impl<T> TapeLikeMut for VecDeque<T> {
+impl<T> IndexableCollectionMut for VecDeque<T> {
 	fn get_item_mut(&mut self, index: usize) -> Option<&mut Self::Item> {
 		self.get_mut(index)
 	}

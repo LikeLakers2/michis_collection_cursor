@@ -1,3 +1,3 @@
-# michis_cassette_vec
+# michis_collection_cursor
 
-A Vec which also contains a pointer into itself, similar to a cassette head pointing to a specific part of a cassette. Useful for things like history, undo-redo systems, or timelines.
+A cursor which wraps an indexable collection, providing a movable position which points to an index of the collection. Useful for things like history, undo-redo systems, or timelines.

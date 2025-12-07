@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "michis_cassette_vec"
+name = "michis_collection_cursor"
 version = "0.1.0"

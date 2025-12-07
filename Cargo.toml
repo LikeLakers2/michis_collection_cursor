@@ -1,13 +1,13 @@
 [package]
-name = "michis_cassette_vec"
+name = "michis_collection_cursor"
 version = "0.1.0"
 edition = "2024"
 
-description = "A Vec which also contains a pointer into itself, similar to a cassette head pointing to a specific part of a cassette. Useful for things like history, undo-redo systems, or timelines."
+description = "A cursor which wraps an indexable collection, providing a movable position which points to an index of the collection. Useful for things like history, undo-redo systems, or timelines."
 readme = true
-repository = "https://github.com/LikeLakers2/michis_tape_vec"
+repository = "https://github.com/LikeLakers2/michis_collection_cursor"
 license = "MIT OR Apache-2.0"
-keywords = ["cassette_vec", "vec", "head"]
+keywords = ["collection", "cursor", "collection_cursor", "head"]
 categories = ["data-structures"]
 
 [dependencies]
