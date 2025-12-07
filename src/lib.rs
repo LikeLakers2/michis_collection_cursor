@@ -62,6 +62,13 @@ impl<Tape> CassetteVec<Tape> {
 
 // Head operations
 impl<Tape: TapeLike> CassetteVec<Tape> {
+	/// Move the cassette head to a new index.
+	///
+	/// A seek to a position before `0`, or after [`Self::tape_len()`], is an error, and will return
+	/// `None`.
+	///
+	/// This will return `Some(new_pos)` if the seek was successful, where `new_pos` is the new
+	/// position of the cassette head.
 	// TODO: Change to something like `Result<usize, OutOfBoundsError>`
 	pub fn seek(&mut self, pos: SeekFrom) -> Option<usize> {
 		let tape_len = self.tape.len();
@@ -174,15 +181,28 @@ pub enum SeekFrom {
 	reason = "While is_empty would normally be useful, we don't have a use for it here"
 )]
 pub trait TapeLike {
+	/// The type of item this container contains.
 	type Item;
 
+	/// Gets the number of items this container currently contains.
 	fn len(&self) -> usize;
+	/// Gets a reference to the item at index `index`.
+	///
+	/// Returns `None` if no item exists at `index`.
 	fn get_item(&self, index: usize) -> Option<&Self::Item>;
 }
 
 pub trait TapeLikeMut: TapeLike {
+	/// Gets a mutable reference to the item at index `index`.
+	///
+	/// Returns `None` if no item exists at `index`.
 	fn get_item_mut(&mut self, index: usize) -> Option<&mut Self::Item>;
+	/// Sets an item at a specific index.
 	fn set_item(&mut self, index: usize, item: Self::Item);
+	/// Removes the item at index `index` from the container, and returns the item.
+	///
+	/// Returns `None` if no item exists at index `index`.
 	fn remove_item(&mut self, index: usize) -> Option<Self::Item>;
+	/// Clears the container's contents.
 	fn clear(&mut self);
 }
