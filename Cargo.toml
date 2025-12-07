@@ -12,6 +12,11 @@ categories = ["data-structures"]
 
 [dependencies]
 
+[features]
+default = ["alloc"]
+# Adds trait implementations for some collection types in the `alloc` crate
+alloc = []
+
 [lints]
 clippy.allow_attributes_without_reason = "forbid"
 clippy.cargo_common_metadata = "warn"
