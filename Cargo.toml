@@ -18,6 +18,7 @@ serde = { version = "1", optional = true, default-features = false, features = [
 # IndexableCollection impls on foreign crates
 arrayvec = { version = "0.7", optional = true, default-features = false }
 smallvec = { version = "1", optional = true, default-features = false }
+tinyvec = { version = "1", optional = true, default-features = false }
 
 [features]
 default = ["alloc"]
@@ -25,10 +26,20 @@ default = ["alloc"]
 # Adds (de)serialization support to the crate
 serde = ["dep:serde"]
 
-# Features to implement IndexableCollection on foreign crates (each crate is its own feature)
-alloc = []
+# Implements `IndexableCollection(Mut)` on some types in the built-into-Rust `alloc` crate.
+#
+# If used in combination with other features meant for foreign crates, it will also enable their
+# `alloc` feature.
+alloc = ["tinyvec?/alloc"]
+
+# Implements `IndexableCollection(Mut)` on various types within foreign crates. Each crate is its
+# own feature.
+#
+# If used in combination with the `alloc` feature, certain crates may have their `alloc` feature
+# enabled.
 arrayvec = ["dep:arrayvec"]
 smallvec = ["dep:smallvec"]
+tinyvec = ["dep:tinyvec"]
 
 [lints]
 clippy.allow_attributes_without_reason = "forbid"
