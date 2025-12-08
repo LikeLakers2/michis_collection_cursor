@@ -12,20 +12,23 @@ keywords = ["collection", "cursor", "collection_cursor", "head"]
 categories = ["data-structures"]
 
 [dependencies]
+# (De)Serialization
+serde = { version = "1", optional = true, default-features = false, features = ["derive"] }
+
+# IndexableCollection impls on foreign crates
 arrayvec = { version = "0.7", optional = true, default-features = false }
 smallvec = { version = "1", optional = true, default-features = false }
-serde = { version = "1", optional = true, default-features = false, features = ["derive"] }
 
 [features]
 default = ["alloc"]
-# Adds trait implementations for the built-into-Rust `alloc` crate
-alloc = []
-# Adds trait implementations for the `arrayvec@0.7` crate
-arrayvec = ["dep:arrayvec"]
-# Adds trait implementations for the `smallvec@1` crate
-smallvec = ["dep:smallvec"]
+
 # Adds (de)serialization support to the crate
 serde = ["dep:serde"]
+
+# Features to implement IndexableCollection on foreign crates (each crate is its own feature)
+alloc = []
+arrayvec = ["dep:arrayvec"]
+smallvec = ["dep:smallvec"]
 
 [lints]
 clippy.allow_attributes_without_reason = "forbid"
