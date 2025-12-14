@@ -213,7 +213,10 @@ mod collection_cursor_tests {
 	use super::*;
 	use alloc::vec::Vec;
 
-	fn test_vec() -> Vec<i32> {
+	type TestVec = Vec<i32>;
+	type TestCollection = CollectionCursor<TestVec>;
+
+	fn test_vec() -> TestVec {
 		let res = Vec::from([0, 1, 2, 3, 4, 5, 9, 8, 7, 6]);
 
 		// Ensure that the length is a known value.
@@ -223,7 +226,7 @@ mod collection_cursor_tests {
 		res
 	}
 
-	fn test_collection() -> CollectionCursor<Vec<i32>> {
+	fn test_collection() -> TestCollection {
 		let res = CollectionCursor {
 			inner: self::test_vec(),
 			pos: Default::default(),
@@ -277,21 +280,20 @@ mod collection_cursor_tests {
 	#[test]
 	fn seek() {
 		fn inner(
-			collection: &mut CollectionCursor<Vec<i32>>,
+			collection: &mut TestCollection,
 			seek_from: SeekFrom,
 			expected_result: Option<usize>,
 			expected_pos: usize,
+			error_message: &'static str,
 		) {
 			let new_pos = collection.seek(seek_from);
-			assert_eq!(
-				new_pos, expected_result,
-				"the seek did not return the expected value"
-			);
+			assert_eq!(new_pos, expected_result, "{error_message}");
 			assert_eq!(
 				collection.pos, expected_pos,
 				"the seek did not place the cursor at the expected position"
 			);
 		}
+
 		let mut collection = self::test_collection();
 
 		let past_end_usize: usize = test_collection().inner.len() * 2;
@@ -300,52 +302,381 @@ mod collection_cursor_tests {
 
 		// Seeking to within valid bounds should return the `Some(the new position)` and move the
 		// cursor
-		inner(&mut collection, SeekFrom::Start(3), Some(3), 3);
-		inner(&mut collection, SeekFrom::Start(0), Some(0), 0);
+		inner(
+			&mut collection,
+			SeekFrom::Start(3),
+			Some(3),
+			3,
+			"`Start(x)` should move the cursor within the bounds of the collection",
+		);
+		inner(
+			&mut collection,
+			SeekFrom::Start(0),
+			Some(0),
+			0,
+			"`Start(0)` should move the cursor to the start of the collection",
+		);
 
-		inner(&mut collection, SeekFrom::Current(0), Some(0), 0);
-		inner(&mut collection, SeekFrom::Current(7), Some(7), 7);
-		inner(&mut collection, SeekFrom::Current(-2), Some(5), 5);
-		inner(&mut collection, SeekFrom::Current(-5), Some(0), 0);
+		inner(
+			&mut collection,
+			SeekFrom::Current(0),
+			Some(0),
+			0,
+			"`Current(0) shouldn't move the cursor",
+		);
+		inner(
+			&mut collection,
+			SeekFrom::Current(7),
+			Some(7),
+			7,
+			"`Current(x)` should move the cursor forward within the bounds of the collection",
+		);
+		inner(
+			&mut collection,
+			SeekFrom::Current(-2),
+			Some(5),
+			5,
+			"`Current(-x) should move the cursor backwards within the bounds of the collection",
+		);
+		inner(
+			&mut collection,
+			SeekFrom::Current(-5),
+			Some(0),
+			0,
+			"`Current(-current_pos) should move the cursor to the start of the collection",
+		);
 
-		inner(&mut collection, SeekFrom::End(0), Some(10), 10);
-		inner(&mut collection, SeekFrom::End(-1), Some(9), 9);
-		inner(&mut collection, SeekFrom::End(-5), Some(5), 5);
-		inner(&mut collection, SeekFrom::End(-10), Some(0), 0);
+		inner(
+			&mut collection,
+			SeekFrom::End(0),
+			Some(10),
+			10,
+			"`End(0)` should move the cursor to one past the end of the collection",
+		);
+		inner(
+			&mut collection,
+			SeekFrom::End(-1),
+			Some(9),
+			9,
+			"`End(-1)` should move the cursor to the end of the collection",
+		);
+		inner(
+			&mut collection,
+			SeekFrom::End(-5),
+			Some(5),
+			5,
+			"`End(-x)` should move the cursor within the bounds of the collection",
+		);
+		inner(
+			&mut collection,
+			SeekFrom::End(-10),
+			Some(0),
+			0,
+			"`End(-len)` should move the cursor to the start of the collection",
+		);
 
 		// Seek to a known position. We reuse the testing function to ensure we're actually there,
 		// just in case the test data has been messed with improperly.
-		inner(&mut collection, SeekFrom::Start(7), Some(7), 7);
+		inner(
+			&mut collection,
+			SeekFrom::Start(7),
+			Some(7),
+			7,
+			"this shouldn't fail",
+		);
 
 		// Seeking outside valid bounds should return `None` and *not* move the cursor
-		inner(&mut collection, SeekFrom::Start(past_end_usize), None, 7);
+		inner(
+			&mut collection,
+			SeekFrom::Start(past_end_usize),
+			None,
+			7,
+			"`Start(x)` shouldn't move past one index past the end of the collection",
+		);
 
 		inner(
 			&mut collection,
 			SeekFrom::Current(before_beginning),
 			None,
 			7,
+			"`Current(-X)` shouldn't move past the start of the collection",
 		);
-		inner(&mut collection, SeekFrom::Current(past_end_isize), None, 7);
+		inner(
+			&mut collection,
+			SeekFrom::Current(past_end_isize),
+			None,
+			7,
+			"`Current(x)` shouldn't move past the end of the collection",
+		);
 
-		inner(&mut collection, SeekFrom::End(1), None, 7);
-		inner(&mut collection, SeekFrom::End(before_beginning), None, 7);
-		inner(&mut collection, SeekFrom::End(past_end_isize), None, 7);
+		inner(
+			&mut collection,
+			SeekFrom::End(1),
+			None,
+			7,
+			"`End(1)` shouldn't move past the end of the collection",
+		);
+		inner(
+			&mut collection,
+			SeekFrom::End(before_beginning),
+			None,
+			7,
+			"`End(-x)` shouldn't move past the start of the collection",
+		);
+		inner(
+			&mut collection,
+			SeekFrom::End(past_end_isize),
+			None,
+			7,
+			"`End(x)` shouldn't move past the end of the collection",
+		);
 	}
 
 	#[test]
 	fn clamp_to_collection_bounds() {
-		// Create a messed up collection, and test clamping
+		fn inner(
+			collection: &mut TestCollection,
+			initial_pos: usize,
+			expected_pos: usize,
+			error_message: &'static str,
+		) {
+			collection.pos = initial_pos;
+			collection.clamp_to_collection_bounds();
+			assert_eq!(collection.pos, expected_pos, "{error_message}");
+		}
+
 		let mut collection = self::test_collection();
+		let collection_len = collection.inner.len();
+
+		inner(
+			&mut collection,
+			usize::MAX,
+			collection_len,
+			"should move the cursor to one index past the end of the collection",
+		);
+		inner(
+			&mut collection,
+			2,
+			2,
+			"shouldn't move the cursor when already within the bounds of the collection",
+		);
+	}
+
+	#[test]
+	fn seek_to_start() {
+		fn inner(collection: &mut TestCollection, initial_pos: usize) {
+			collection.pos = initial_pos;
+			collection.seek_to_start();
+			assert_eq!(collection.pos, 0);
+		}
+
+		let mut collection = self::test_collection();
+
+		// seek_to_end should ALWAYS succeed
+		inner(&mut collection, 5);
+		inner(&mut collection, usize::MAX);
+	}
+
+	#[test]
+	fn seek_backward_one() {
+		fn inner(
+			collection: &mut TestCollection,
+			should_succeed: bool,
+			expected_new_pos: usize,
+			error_message: &'static str,
+		) {
+			let seek_success = collection.seek_backward_one();
+			assert_eq!(seek_success, should_succeed, "{error_message}");
+			assert_eq!(
+				collection.pos, expected_new_pos,
+				"cursor was not moved to the expected position"
+			);
+		}
+
+		let mut collection = self::test_collection();
+
+		inner(
+			&mut collection,
+			false,
+			0,
+			"shouldn't seek past the beginning of the collection",
+		);
+
+		collection.pos = 5;
+		inner(
+			&mut collection,
+			true,
+			4,
+			"should seek backward if within the bounds of the collection",
+		);
+
 		collection.pos = usize::MAX;
-		assert!(collection.pos > collection.inner.len());
+		inner(
+			&mut collection,
+			false,
+			usize::MAX,
+			"shouldn't seek if outside the bounds of the collection",
+		);
+	}
 
-		collection.clamp_to_collection_bounds();
-		assert_eq!(collection.pos, collection.inner.len());
+	#[test]
+	fn seek_relative() {
+		fn inner(
+			collection: &mut TestCollection,
+			offset: isize,
+			expected_result: Option<usize>,
+			expected_pos: usize,
+			error_message: &'static str,
+		) {
+			let seek_res = collection.seek_relative(offset);
+			assert_eq!(seek_res, expected_result, "{error_message}");
+			assert_eq!(
+				collection.pos, expected_pos,
+				"the relative seek did not position the cursor as expected"
+			);
+		}
 
-		// Create a normal collection, and test that clamping does nothing
-		collection.pos = 2;
-		collection.clamp_to_collection_bounds();
-		assert_eq!(collection.pos, 2);
+		let mut collection = self::test_collection();
+
+		inner(&mut collection, 0, Some(0), 0, "shouldn't move at all");
+
+		collection.pos = 5;
+		inner(
+			&mut collection,
+			-2,
+			Some(3),
+			3,
+			"should move when within the bounds of the collection",
+		);
+		inner(
+			&mut collection,
+			2,
+			Some(5),
+			5,
+			"should move when within the bounds of the collection",
+		);
+
+		inner(&mut collection, 0, Some(5), 5, "shouldn't move at all");
+
+		collection.pos = 5;
+		inner(
+			&mut collection,
+			isize::MAX,
+			None,
+			5,
+			"shouldn't move past the end of the collection",
+		);
+		inner(
+			&mut collection,
+			-isize::MAX,
+			None,
+			5,
+			"shouldn't move before the beginning of the collection",
+		);
+
+		collection.pos = usize::MAX;
+		inner(
+			&mut collection,
+			5,
+			None,
+			usize::MAX,
+			"shouldn't move when outside the bounds of the collection",
+		);
+		inner(
+			&mut collection,
+			-5,
+			None,
+			usize::MAX,
+			"shouldn't move when outside the bounds of the collection",
+		);
+	}
+
+	#[test]
+	fn seek_forward_one() {
+		fn inner(
+			collection: &mut TestCollection,
+			should_succeed: bool,
+			expected_new_pos: usize,
+			error_message: &'static str,
+		) {
+			let seek_success = collection.seek_forward_one();
+			assert_eq!(seek_success, should_succeed, "{error_message}");
+			assert_eq!(
+				collection.pos, expected_new_pos,
+				"cursor was not moved to the expected position"
+			);
+		}
+
+		let mut collection = self::test_collection();
+
+		inner(
+			&mut collection,
+			true,
+			1,
+			"should seek forward when an item is available",
+		);
+
+		collection.pos = 5;
+		inner(
+			&mut collection,
+			true,
+			6,
+			"should seek forward when an item is available",
+		);
+
+		let collection_len = collection.inner.len();
+
+		collection.pos = collection_len - 1;
+		inner(
+			&mut collection,
+			true,
+			collection_len,
+			"should seek one past the end of the bounds of the collection",
+		);
+
+		collection.pos = collection_len;
+		inner(
+			&mut collection,
+			false,
+			collection_len,
+			"shouldn't seek past one index past the end of the bounds of the collection",
+		);
+
+		collection.pos = usize::MAX;
+		inner(
+			&mut collection,
+			false,
+			usize::MAX,
+			"shouldn't seek at all past `len()` of the collection",
+		);
+	}
+
+	#[test]
+	fn seek_to_last_item() {
+		fn inner(collection: &mut TestCollection, initial_pos: usize, expected_pos: usize) {
+			collection.pos = initial_pos;
+			collection.seek_to_last_item();
+			assert_eq!(collection.pos, expected_pos);
+		}
+
+		let mut collection = self::test_collection();
+
+		inner(&mut collection, 5, self::test_vec().len() - 1);
+		inner(&mut collection, usize::MAX, self::test_vec().len() - 1);
+	}
+
+	#[test]
+	fn seek_to_end() {
+		fn inner(collection: &mut TestCollection, initial_pos: usize) {
+			collection.pos = initial_pos;
+			collection.seek_to_end();
+			assert_eq!(collection.pos, collection.inner.len());
+		}
+
+		let mut collection = self::test_collection();
+
+		// seek_to_end should ALWAYS succeed
+		inner(&mut collection, 5);
+		inner(&mut collection, usize::MAX);
 	}
 }
