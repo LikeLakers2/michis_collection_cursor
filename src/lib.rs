@@ -86,7 +86,15 @@ impl<Tape: IndexableCollection> CollectionCursor<Tape> {
 			.inspect(|&new_pos| self.pos = new_pos)
 	}
 
-	pub fn clamp_to_collection_bounds(&mut self) {
+	pub fn clamp_to_last_item(&mut self) {
+		// `usize`, by its nature, cannot be below `0`. Thus, we only need to know which is the
+		// smaller value: the collection length, or the head position
+		self.pos = self
+			.pos
+			.min(self.inner.len().checked_sub(1).unwrap_or_default());
+	}
+
+	pub fn clamp_to_end(&mut self) {
 		// `usize`, by its nature, cannot be below `0`. Thus, we only need to know which is the
 		// smaller value: the collection length, or the head position
 		self.pos = self.pos.min(self.inner.len());
@@ -120,31 +128,51 @@ impl<Tape: IndexableCollection> CollectionCursor<Tape> {
 
 // Tape ref operations
 impl<Tape: IndexableCollection> CollectionCursor<Tape> {
-	pub fn get_item_at_head(&self) -> Option<&Tape::Item> {
+	/// Returns a reference to the element pointed at by the cursor.
+	///
+	/// Returns `None` if the cursor is currently out-of-bounds for one reason or another.
+	pub fn get_item_at_cursor(&self) -> Option<&Tape::Item> {
 		self.inner.get_item(self.pos)
 	}
 }
 
 // Tape mut operations
 impl<Tape: IndexableCollectionMut> CollectionCursor<Tape> {
+	/// Removes all elements within the inner collection, and returns the cursor to the index `0`.
 	pub fn clear(&mut self) {
 		self.inner.clear();
 		self.pos = 0;
 	}
 
-	pub fn get_item_at_head_mut(&mut self) -> Option<&mut Tape::Item> {
+	/// Returns a mutable reference to the element pointed at by the cursor.
+	///
+	/// Returns `None` if the cursor is out-of-bounds.
+	pub fn get_item_at_cursor_mut(&mut self) -> Option<&mut Tape::Item> {
 		self.inner.get_item_mut(self.pos)
 	}
 
-	pub fn set_item_at_head(&mut self, item: Tape::Item) {
+	/// Sets the slot at the cursor to `item`.
+	///
+	/// # Panics
+	/// Panics if `self.position() >= self.get_ref().len()`.
+	pub fn set_item_at_cursor(&mut self, item: Tape::Item) {
 		self.inner.set_item(self.pos, item);
 	}
 
-	pub fn insert_item_at_head(&mut self, item: Tape::Item) {
+	/// Inserts `item` at the cursor, shifting the following elements to the right by one index.
+	///
+	/// # Panics
+	/// Panics if `self.position() > self.get_ref().len()`, or if inserting into the inner
+	/// collection panics.
+	pub fn insert_item_at_cursor(&mut self, item: Tape::Item) {
 		self.inner.insert_item(self.pos, item);
 	}
 
-	pub fn remove_item_at_head(&mut self) -> Option<Tape::Item> {
+	/// Removes and returns the item at the cursor.
+	///
+	/// Returns `None` if `self.position() >= self.get_ref().len()`, or if removing from the inner
+	/// collection panics.
+	pub fn remove_item_at_cursor(&mut self) -> Option<Tape::Item> {
 		self.inner.remove_item(self.pos)
 	}
 }
@@ -440,7 +468,7 @@ mod collection_cursor_tests {
 	}
 
 	#[test]
-	fn clamp_to_collection_bounds() {
+	fn clamp_to_last_item() {
 		fn inner(
 			collection: &mut TestCollection,
 			initial_pos: usize,
@@ -448,7 +476,37 @@ mod collection_cursor_tests {
 			error_message: &'static str,
 		) {
 			collection.pos = initial_pos;
-			collection.clamp_to_collection_bounds();
+			collection.clamp_to_last_item();
+			assert_eq!(collection.pos, expected_pos, "{error_message}");
+		}
+
+		let mut collection = self::test_collection();
+		let collection_len = collection.inner.len();
+
+		inner(
+			&mut collection,
+			usize::MAX,
+			collection_len - 1,
+			"should move the cursor to the end of the collection",
+		);
+		inner(
+			&mut collection,
+			2,
+			2,
+			"shouldn't move the cursor when already within the bounds of the collection",
+		);
+	}
+
+	#[test]
+	fn clamp_to_end() {
+		fn inner(
+			collection: &mut TestCollection,
+			initial_pos: usize,
+			expected_pos: usize,
+			error_message: &'static str,
+		) {
+			collection.pos = initial_pos;
+			collection.clamp_to_end();
 			assert_eq!(collection.pos, expected_pos, "{error_message}");
 		}
 
@@ -688,7 +746,7 @@ mod collection_cursor_tests {
 	}
 
 	#[test]
-	fn get_item_at_head() {
+	fn get_item_at_cursor() {
 		let test_vec = self::test_vec();
 		let mut collection = self::test_collection();
 
@@ -696,7 +754,7 @@ mod collection_cursor_tests {
 		for i in 0..=(test_vec.len()) {
 			collection.pos = i;
 			let test_vec_get = test_vec.get(i);
-			let collection_get = collection.get_item_at_head();
+			let collection_get = collection.get_item_at_cursor();
 
 			assert_eq!(
 				test_vec_get, collection_get,
@@ -717,7 +775,7 @@ mod collection_cursor_tests {
 	}
 
 	#[test]
-	fn get_item_at_head_mut() {
+	fn get_item_at_cursor_mut() {
 		let mut test_vec = self::test_vec();
 		let mut collection = self::test_collection();
 
@@ -725,7 +783,7 @@ mod collection_cursor_tests {
 		for i in 0..=(test_vec.len()) {
 			collection.pos = i;
 			let test_vec_get = test_vec.get_mut(i);
-			let collection_get = collection.get_item_at_head_mut();
+			let collection_get = collection.get_item_at_cursor_mut();
 
 			assert_eq!(
 				test_vec_get, collection_get,
@@ -735,7 +793,7 @@ mod collection_cursor_tests {
 	}
 
 	#[test]
-	fn set_item_at_head() {
+	fn set_item_at_cursor() {
 		const AT_POS: usize = 5;
 		const TO_VALUE: i32 = 52345;
 
@@ -744,7 +802,7 @@ mod collection_cursor_tests {
 
 		test_vec[AT_POS] = TO_VALUE;
 		collection.pos = AT_POS;
-		collection.set_item_at_head(TO_VALUE);
+		collection.set_item_at_cursor(TO_VALUE);
 
 		assert_eq!(
 			collection.inner.get(AT_POS),
@@ -755,7 +813,7 @@ mod collection_cursor_tests {
 	}
 
 	#[test]
-	fn insert_item_at_head() {
+	fn insert_item_at_cursor() {
 		const AT_POS: usize = 5;
 		const TO_VALUE: i32 = 52345;
 
@@ -764,7 +822,7 @@ mod collection_cursor_tests {
 
 		test_vec.insert(AT_POS, TO_VALUE);
 		collection.pos = AT_POS;
-		collection.insert_item_at_head(TO_VALUE);
+		collection.insert_item_at_cursor(TO_VALUE);
 
 		assert_eq!(
 			collection.inner.get(AT_POS),
@@ -775,7 +833,7 @@ mod collection_cursor_tests {
 	}
 
 	#[test]
-	fn remove_item_at_head() {
+	fn remove_item_at_cursor() {
 		const AT_POS: usize = 5;
 
 		let mut test_vec = self::test_vec();
@@ -783,7 +841,7 @@ mod collection_cursor_tests {
 
 		let test_vec_res = test_vec.remove(5);
 		collection.pos = AT_POS;
-		let collection_res = collection.remove_item_at_head();
+		let collection_res = collection.remove_item_at_cursor();
 		assert_eq!(
 			collection_res,
 			Some(test_vec_res),
@@ -793,7 +851,7 @@ mod collection_cursor_tests {
 
 		// Additionally, test that this does NOT panic when out-of-bounds
 		collection.pos = collection.inner.len() * 2;
-		let collection_res = collection.remove_item_at_head();
+		let collection_res = collection.remove_item_at_cursor();
 		assert_eq!(
 			collection_res, None,
 			"should return `None` if the head was out-of-bounds"
