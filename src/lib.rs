@@ -200,7 +200,7 @@ impl<Tape: IndexableCollectionMut> CollectionCursor<Tape> {
 	/// collection would normally panic.
 	pub fn remove_item_at_cursor(&mut self) -> Option<Tape::Item> {
 		// Note: We don't have to worry about moving the cursor. If the cursor is on the last item,
-		// it will then be one index past the end, which is still within the valid area for the
+		// removing will put it one index past the end, which is still within the valid area for the
 		// cursor to be. Meanwhile, if it's past the end, no item will be removed.
 		self.inner.remove_item(self.pos)
 	}
@@ -366,10 +366,6 @@ mod collection_cursor_tests {
 
 		let mut collection = self::test_collection();
 
-		let past_end_usize: usize = test_collection().inner.len() * 2;
-		let past_end_isize: isize = past_end_usize as isize;
-		let before_beginning: isize = -past_end_isize;
-
 		// Seeking to within valid bounds should return the `Some(the new position)` and move the
 		// cursor
 		inner(
@@ -458,25 +454,25 @@ mod collection_cursor_tests {
 		// Seeking outside valid bounds should return `None` and *not* move the cursor
 		inner(
 			&mut collection,
-			SeekFrom::Start(past_end_usize),
+			SeekFrom::Start(usize::MAX),
 			None,
 			7,
-			"`Start(x)` shouldn't move past one index past the end of the collection",
+			"`Start(x)` shouldn't move if doing so would put it past one index past the end of the collection",
 		);
 
 		inner(
 			&mut collection,
-			SeekFrom::Current(before_beginning),
+			SeekFrom::Current(-isize::MAX),
 			None,
 			7,
-			"`Current(-X)` shouldn't move past the start of the collection",
+			"`Current(-X)` shouldn't move if doing so would put it past the start of the collection",
 		);
 		inner(
 			&mut collection,
-			SeekFrom::Current(past_end_isize),
+			SeekFrom::Current(isize::MAX),
 			None,
 			7,
-			"`Current(x)` shouldn't move past the end of the collection",
+			"`Current(x)` shouldn't move if doing so would put it past the end of the collection",
 		);
 
 		inner(
@@ -484,21 +480,21 @@ mod collection_cursor_tests {
 			SeekFrom::End(1),
 			None,
 			7,
-			"`End(1)` shouldn't move past the end of the collection",
+			"`End(1)` shouldn't move if doing so would put it past the end of the collection",
 		);
 		inner(
 			&mut collection,
-			SeekFrom::End(before_beginning),
+			SeekFrom::End(-isize::MAX),
 			None,
 			7,
-			"`End(-x)` shouldn't move past the start of the collection",
+			"`End(-x)` shouldn't move if doing so would put it past the start of the collection",
 		);
 		inner(
 			&mut collection,
-			SeekFrom::End(past_end_isize),
+			SeekFrom::End(isize::MAX),
 			None,
 			7,
-			"`End(x)` shouldn't move past the end of the collection",
+			"`End(x)` shouldn't move if doing so would put it past the end of the collection",
 		);
 	}
 
@@ -530,6 +526,20 @@ mod collection_cursor_tests {
 			2,
 			"shouldn't move the cursor when already within the bounds of the collection",
 		);
+
+		let mut empty_collection = CollectionCursor::new(Vec::<i32>::from([]));
+		inner(
+			&mut empty_collection,
+			0,
+			0,
+			"should keep the cursor at index `0` when given an empty collection",
+		);
+		inner(
+			&mut empty_collection,
+			usize::MAX,
+			0,
+			"should move the cursor to index `0` when given an empty collection",
+		);
 	}
 
 	#[test]
@@ -559,6 +569,20 @@ mod collection_cursor_tests {
 			2,
 			2,
 			"shouldn't move the cursor when already within the bounds of the collection",
+		);
+
+		let mut empty_collection = CollectionCursor::new(Vec::<i32>::from([]));
+		inner(
+			&mut empty_collection,
+			0,
+			0,
+			"should keep the cursor at index `0` when given an empty collection",
+		);
+		inner(
+			&mut empty_collection,
+			usize::MAX,
+			0,
+			"should move the cursor to index `0` when given an empty collection",
 		);
 	}
 
