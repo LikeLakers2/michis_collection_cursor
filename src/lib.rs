@@ -596,7 +596,7 @@ mod collection_cursor_tests {
 
 		let mut collection = self::test_collection();
 
-		// seek_to_end should ALWAYS succeed
+		// seek_to_start should ALWAYS succeed
 		inner(&mut collection, 5);
 		inner(&mut collection, usize::MAX);
 	}
