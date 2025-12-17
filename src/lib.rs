@@ -372,6 +372,22 @@ mod collection_cursor_tests {
 	}
 
 	#[test]
+	fn is_cursor_at_end() {
+		let mut collection = self::test_collection();
+
+		assert!(
+			!collection.is_cursor_at_end(),
+			"should return false when not at end"
+		);
+
+		collection.pos = collection.inner.len();
+		assert!(
+			collection.is_cursor_at_end(),
+			"should return true when at end"
+		);
+	}
+
+	#[test]
 	fn seek() {
 		fn inner(
 			collection: &mut TestCollection,
