@@ -522,107 +522,62 @@ mod collection_cursor_tests {
 		);
 	}
 
+	macro_rules! __clamp_to {
+		($method:tt, $first_test_expected_pos:expr, $first_test_error_message:expr) => {
+			let mut collection = self::test_collection();
+
+			collection.pos = usize::MAX;
+			collection.$method();
+			assert_eq!(
+				collection.pos, $first_test_expected_pos,
+				$first_test_error_message
+			);
+
+			collection.pos = 2;
+			collection.$method();
+			assert_eq!(
+				collection.pos, 2,
+				"shouldn't move the cursor when already within the bounds of the collection"
+			);
+
+			collection = CollectionCursor::new(Vec::from([]));
+
+			collection.pos = 0;
+			collection.$method();
+			assert_eq!(
+				collection.pos, 0,
+				"should keep the cursor at index `0` when given an empty collection"
+			);
+
+			collection.pos = usize::MAX;
+			collection.$method();
+			assert_eq!(
+				collection.pos, 0,
+				"should keep the cursor at index `0` when given an empty collection"
+			);
+		};
+	}
+
 	#[test]
 	fn clamp_to_last_item() {
-		fn inner(
-			collection: &mut TestCollection,
-			initial_pos: usize,
-			expected_pos: usize,
-			error_message: &'static str,
-		) {
-			collection.pos = initial_pos;
-			collection.clamp_to_last_item();
-			assert_eq!(collection.pos, expected_pos, "{error_message}");
-		}
+		let collection_len = self::test_collection().inner.len();
 
-		let mut collection = self::test_collection();
-		let collection_len = collection.inner.len();
-
-		inner(
-			&mut collection,
-			usize::MAX,
+		__clamp_to!(
+			clamp_to_last_item,
 			collection_len - 1,
-			"should move the cursor to the end of the collection",
-		);
-		inner(
-			&mut collection,
-			2,
-			2,
-			"shouldn't move the cursor when already within the bounds of the collection",
-		);
-
-		let mut empty_collection = CollectionCursor::new(Vec::<i32>::from([]));
-		inner(
-			&mut empty_collection,
-			0,
-			0,
-			"should keep the cursor at index `0` when given an empty collection",
-		);
-		inner(
-			&mut empty_collection,
-			usize::MAX,
-			0,
-			"should move the cursor to index `0` when given an empty collection",
+			"should move the cursor to the last item of the collection"
 		);
 	}
 
 	#[test]
 	fn clamp_to_end() {
-		fn inner(
-			collection: &mut TestCollection,
-			initial_pos: usize,
-			expected_pos: usize,
-			error_message: &'static str,
-		) {
-			collection.pos = initial_pos;
-			collection.clamp_to_end();
-			assert_eq!(collection.pos, expected_pos, "{error_message}");
-		}
+		let collection_len = self::test_collection().inner.len();
 
-		let mut collection = self::test_collection();
-		let collection_len = collection.inner.len();
-
-		inner(
-			&mut collection,
-			usize::MAX,
+		__clamp_to!(
+			clamp_to_end,
 			collection_len,
-			"should move the cursor to one index past the end of the collection",
+			"should move the cursor to the one index past the last item of the collection"
 		);
-		inner(
-			&mut collection,
-			2,
-			2,
-			"shouldn't move the cursor when already within the bounds of the collection",
-		);
-
-		let mut empty_collection = CollectionCursor::new(Vec::<i32>::from([]));
-		inner(
-			&mut empty_collection,
-			0,
-			0,
-			"should keep the cursor at index `0` when given an empty collection",
-		);
-		inner(
-			&mut empty_collection,
-			usize::MAX,
-			0,
-			"should move the cursor to index `0` when given an empty collection",
-		);
-	}
-
-	#[test]
-	fn seek_to_start() {
-		fn inner(collection: &mut TestCollection, initial_pos: usize) {
-			collection.pos = initial_pos;
-			collection.seek_to_start();
-			assert_eq!(collection.pos, 0);
-		}
-
-		let mut collection = self::test_collection();
-
-		// seek_to_start should ALWAYS succeed
-		inner(&mut collection, 5);
-		inner(&mut collection, usize::MAX);
 	}
 
 	#[test]
@@ -799,33 +754,35 @@ mod collection_cursor_tests {
 		);
 	}
 
+	macro_rules! __seek_to {
+		($method:tt, $initial_pos:expr, $expected_pos:expr) => {
+			let mut collection = self::test_collection();
+			collection.pos = $initial_pos;
+			collection.$method();
+			assert_eq!(collection.pos, $expected_pos);
+		};
+	}
+
+	#[test]
+	fn seek_to_start() {
+		// seek_to_start should ALWAYS succeed
+		__seek_to!(seek_to_start, 5, 0);
+		__seek_to!(seek_to_start, usize::MAX, 0);
+	}
+
 	#[test]
 	fn seek_to_last_item() {
-		fn inner(collection: &mut TestCollection, initial_pos: usize, expected_pos: usize) {
-			collection.pos = initial_pos;
-			collection.seek_to_last_item();
-			assert_eq!(collection.pos, expected_pos);
-		}
-
-		let mut collection = self::test_collection();
-
-		inner(&mut collection, 5, self::test_vec().len() - 1);
-		inner(&mut collection, usize::MAX, self::test_vec().len() - 1);
+		let expected_pos = self::test_vec().len() - 1;
+		__seek_to!(seek_to_last_item, 5, expected_pos);
+		__seek_to!(seek_to_last_item, usize::MAX, expected_pos);
 	}
 
 	#[test]
 	fn seek_to_end() {
-		fn inner(collection: &mut TestCollection, initial_pos: usize) {
-			collection.pos = initial_pos;
-			collection.seek_to_end();
-			assert_eq!(collection.pos, collection.inner.len());
-		}
-
-		let mut collection = self::test_collection();
-
 		// seek_to_end should ALWAYS succeed
-		inner(&mut collection, 5);
-		inner(&mut collection, usize::MAX);
+		let expected_pos = self::test_collection().inner.len();
+		__seek_to!(seek_to_end, 5, expected_pos);
+		__seek_to!(seek_to_end, usize::MAX, expected_pos);
 	}
 
 	#[test]
@@ -875,7 +832,7 @@ mod collection_cursor_tests {
 		}
 	}
 
-	fn set_item_inner(mut collection: TestCollection, mut test_vec: TestVec) {
+	fn __set_item(mut collection: TestCollection, mut test_vec: TestVec) {
 		const AT_POS: usize = 5;
 		const TO_VALUE: i32 = 52345;
 
@@ -896,10 +853,10 @@ mod collection_cursor_tests {
 		let test_vec = self::test_vec();
 		let collection = self::test_collection();
 
-		self::set_item_inner(collection, test_vec);
+		self::__set_item(collection, test_vec);
 	}
 
-	fn insert_item_inner(mut collection: TestCollection, mut test_vec: TestVec) {
+	fn __insert_item(mut collection: TestCollection, mut test_vec: TestVec) {
 		const AT_POS: usize = 5;
 		const TO_VALUE: i32 = 52345;
 
@@ -920,7 +877,7 @@ mod collection_cursor_tests {
 		let test_vec = self::test_vec();
 		let collection = self::test_collection();
 
-		self::insert_item_inner(collection, test_vec);
+		self::__insert_item(collection, test_vec);
 	}
 
 	#[test]
@@ -928,8 +885,8 @@ mod collection_cursor_tests {
 		let test_vec = self::test_vec();
 		let collection = self::test_collection();
 
-		self::set_item_inner(collection.clone(), test_vec.clone());
-		self::insert_item_inner(collection.clone(), test_vec.clone());
+		self::__set_item(collection.clone(), test_vec.clone());
+		self::__insert_item(collection.clone(), test_vec.clone());
 	}
 
 	#[test]
