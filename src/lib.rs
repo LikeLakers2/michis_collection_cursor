@@ -47,12 +47,12 @@ impl<Tape> CollectionCursor<Tape> {
 	/// # Warning
 	/// If the underlying collection's length is modified, you must ensure that
 	/// `0 <= self.position() <= self.get_ref().len()` is upheld before the next attempt to
-	/// read/write at the cursor.
+	/// read/write at the cursor. [`Self::clamp_to_last_item()`] and [`Self::clamp_to_end()`] may be
+	/// useful in these cases.
 	///
 	/// Failure to do so is a logic error. The behavior resulting from such a logic error is not
-	/// specified, but will be encapsulated to the `CollectionCursor` that observed the logic error
-	/// and not result in undefined behavior. This could include panics, incorrect results, and
-	/// other such unwanted behavior.
+	/// specified, but will generally result in panics, incorrect results, and other such unwanted
+	/// behavior.
 	pub fn get_mut(&mut self) -> &mut Tape {
 		&mut self.inner
 	}
@@ -86,8 +86,8 @@ impl<Tape: IndexableCollection> CollectionCursor<Tape> {
 			.inspect(|&new_pos| self.pos = new_pos)
 	}
 
-	/// Clamps the cursor to the index of the last item. If the cursor is before or at that index,
-	/// nothing will happen.
+	/// Clamps the cursor to the index of the last item, or `0` if no items exist. If the cursor is
+	/// before or at that index, nothing will happen.
 	pub fn clamp_to_last_item(&mut self) {
 		// `usize`, by its nature, cannot be below `0`. Thus, we only need to know which is the
 		// smaller value: the collection length, or the head position
@@ -111,14 +111,16 @@ impl<Tape: IndexableCollection> CollectionCursor<Tape> {
 		self.pos = 0;
 	}
 
-	/// Moves the cursor backwards one item.
+	/// Moves the cursor backwards one item. Returning `true` if the move was successful, or `false`
+	/// if we're already at the beginning of the collection.
 	///
 	/// This is a convenience method, equivalent to `self.seek(SeekFrom::Current(-1))`.
 	pub fn seek_backward_one(&mut self) -> bool {
 		self.seek_relative(-1).is_some()
 	}
 
-	/// Moves the cursor relative to the current position.
+	/// Moves the cursor relative to the current position. The return value is the same as the one
+	/// returned for [`Self::seek()`].
 	///
 	/// This is a convenience method, equivalent to `self.seek(SeekFrom::Current(offset))`.
 	// TODO: Change to something like `Result<usize, OutOfBoundsError>`
@@ -126,14 +128,15 @@ impl<Tape: IndexableCollection> CollectionCursor<Tape> {
 		self.seek(SeekFrom::Current(offset))
 	}
 
-	/// Moves the cursor forwards one item.
+	/// Moves the cursor forwards one item, if an item exists. Returns `true` if the move was
+	/// successful, and `false` if we're already at the end of the collection.
 	///
 	/// This is a convenience method, equivalent to `self.seek(SeekFrom::Current(1))`.
 	pub fn seek_forward_one(&mut self) -> bool {
 		self.seek_relative(1).is_some()
 	}
 
-	/// Moves the cursor to the index of the last item.
+	/// Moves the cursor to the index of the last item, or to `0` if no items exist.
 	///
 	/// This is a convenience method, equivalent to `self.seek(SeekFrom::End(-1))`.
 	pub fn seek_to_last_item(&mut self) {
@@ -194,8 +197,11 @@ impl<Tape: IndexableCollectionMut> CollectionCursor<Tape> {
 	/// Removes and returns the item at the cursor.
 	///
 	/// Returns `None` if `self.position() >= self.get_ref().len()`, or if removing from the inner
-	/// collection panics.
+	/// collection would normally panic.
 	pub fn remove_item_at_cursor(&mut self) -> Option<Tape::Item> {
+		// Note: We don't have to worry about moving the cursor. If the cursor is on the last item,
+		// it will then be one index past the end, which is still within the valid area for the
+		// cursor to be. Meanwhile, if it's past the end, no item will be removed.
 		self.inner.remove_item(self.pos)
 	}
 }
@@ -240,25 +246,31 @@ pub trait IndexableCollection {
 
 	/// Gets the number of items this container currently contains.
 	fn len(&self) -> usize;
-	/// Gets a reference to the item at index `index`.
-	///
-	/// Returns `None` if no item exists at `index`.
+	/// Gets a reference to the item at index `index`. Returns `None` if no item exists at `index`.
 	fn get_item(&self, index: usize) -> Option<&Self::Item>;
 }
 
 pub trait IndexableCollectionMut: IndexableCollection {
-	/// Gets a mutable reference to the item at index `index`.
-	///
-	/// Returns `None` if no item exists at `index`.
+	/// Gets a mutable reference to the item at index `index`. Returns `None` if no item exists at
+	/// `index`.
 	fn get_item_mut(&mut self, index: usize) -> Option<&mut Self::Item>;
 	/// Sets an item at a specific index.
+	///
+	/// # Panics
+	/// Panics if `index >= self.get_ref().len()`.
 	fn set_item(&mut self, index: usize, element: Self::Item);
 	/// Inserts an item at a specific index, moving the item at the index and all items after it
 	/// one index forward.
-	fn insert_item(&mut self, index: usize, element: Self::Item);
-	/// Removes the item at index `index` from the container, and returns the item.
 	///
-	/// Returns `None` if no item exists at index `index`.
+	/// # Panics
+	/// Panics if `index > self.len()`, or if the collection would normally panic upon an insert.
+	fn insert_item(&mut self, index: usize, element: Self::Item);
+	/// Removes the item at index `index` from the container, and returns the item, or `None` if no
+	/// item exists at index `index`.
+	///
+	/// You must ensure that removing at an index past the end of the collection does not panic. If
+	/// the normal `remove()` method of a collection would panic given an invalid index, your
+	/// implementation must check and return `None` in those instances.
 	fn remove_item(&mut self, index: usize) -> Option<Self::Item>;
 	/// Clears the container's contents.
 	fn clear(&mut self);
