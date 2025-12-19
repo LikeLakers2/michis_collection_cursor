@@ -347,6 +347,9 @@ mod forward_macro_tests {
 	}
 }
 
+#[cfg(feature = "core")]
+mod core;
+
 #[cfg(feature = "alloc")]
 mod alloc;
 
