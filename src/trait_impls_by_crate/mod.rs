@@ -1,4 +1,4 @@
-macro_rules! forward_ref {
+macro_rules! forward_indexable {
 	() => {
 		fn len(&self) -> usize {
 			self.len()
@@ -10,12 +10,8 @@ macro_rules! forward_ref {
 	};
 }
 
-macro_rules! forward_mut {
-	(check_len_on_remove = $check_len:tt) => {
-		forward_mut!(__inner, main);
-		forward_mut!(__inner, remove, check_len = $check_len);
-	};
-	(__inner, main) => {
+macro_rules! forward_mutable {
+	() => {
 		fn get_item_mut(&mut self, index: usize) -> Option<&mut Self::Item> {
 			self.get_mut(index)
 		}
@@ -23,7 +19,15 @@ macro_rules! forward_mut {
 		fn set_item(&mut self, index: usize, element: Self::Item) {
 			self[index] = element;
 		}
+	};
+}
 
+macro_rules! forward_resizable {
+	(check_len_on_remove = $check_len:tt) => {
+		forward_resizable!(__inner, main);
+		forward_resizable!(__inner, remove, check_len = $check_len);
+	};
+	(__inner, main) => {
 		fn insert_item(&mut self, index: usize, element: Self::Item) {
 			self.insert(index, element);
 		}
@@ -52,7 +56,7 @@ mod forward_macro_tests {
 
 	use alloc::vec::Vec;
 
-	use crate::{IndexableCollection, IndexableCollectionMut};
+	use crate::{IndexableCollection, IndexableCollectionMut, IndexableCollectionResizable};
 
 	/// Returns `None` on a bad remove
 	#[derive(Default)]
@@ -106,11 +110,15 @@ mod forward_macro_tests {
 
 	impl IndexableCollection for TestVec {
 		type Item = i32;
-		forward_ref!();
+		forward_indexable!();
 	}
 
 	impl IndexableCollectionMut for TestVec {
-		forward_mut!(check_len_on_remove = false);
+		forward_mutable!();
+	}
+
+	impl IndexableCollectionResizable for TestVec {
+		forward_resizable!(check_len_on_remove = false);
 	}
 
 	/// Wrapper around `TestVec` to make it panic on a bad remove, so we can test the macro's "check
@@ -161,11 +169,15 @@ mod forward_macro_tests {
 
 	impl IndexableCollection for PanicVec {
 		type Item = i32;
-		forward_ref!();
+		forward_indexable!();
 	}
 
 	impl IndexableCollectionMut for PanicVec {
-		forward_mut!(check_len_on_remove = true);
+		forward_mutable!();
+	}
+
+	impl IndexableCollectionResizable for PanicVec {
+		forward_resizable!(check_len_on_remove = true);
 	}
 
 	/// Ensure that the length reported by the trait is the same as the length reported by the inner
@@ -258,7 +270,7 @@ mod forward_macro_tests {
 
 		inputs.into_iter().for_each(|(index, element)| {
 			regular_vec.insert(index, element);
-			IndexableCollectionMut::insert_item(&mut test_vec, index, element);
+			IndexableCollectionResizable::insert_item(&mut test_vec, index, element);
 			assert_eq!(
 				test_vec.0, regular_vec,
 				"inserting an item didn't result in an identical collection"
@@ -280,7 +292,7 @@ mod forward_macro_tests {
 				// items as removing them directly from the collection.
 				inputs.into_iter().for_each(|index| {
 					let reg_res = regular_vec.remove(index);
-					let test_res = IndexableCollectionMut::remove_item(&mut test_vec, index);
+					let test_res = IndexableCollectionResizable::remove_item(&mut test_vec, index);
 					assert_eq!(Some(reg_res), test_res, "the returned item wasn't the same");
 					assert_eq!(
 						test_vec.$path_to_inner, regular_vec,
@@ -292,7 +304,7 @@ mod forward_macro_tests {
 				// not panic!
 				let index_past_the_end = test_vec.$path_to_inner.len();
 				let test_res =
-					IndexableCollectionMut::remove_item(&mut test_vec, index_past_the_end);
+					IndexableCollectionResizable::remove_item(&mut test_vec, index_past_the_end);
 				assert_eq!(
 					test_res, None,
 					"removing an item past the end did not return `None`"
@@ -322,7 +334,7 @@ mod forward_macro_tests {
 		);
 
 		regular_vec.clear();
-		IndexableCollectionMut::clear(&mut test_vec);
+		IndexableCollectionResizable::clear(&mut test_vec);
 		assert_eq!(
 			test_vec.0, regular_vec,
 			"clearing the vecs did not result in the same list of items"

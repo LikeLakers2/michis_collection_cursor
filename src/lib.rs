@@ -62,7 +62,6 @@ impl<Tape> CollectionCursor<Tape> {
 	}
 }
 
-// Cursor operations
 impl<Tape: IndexableCollection> CollectionCursor<Tape> {
 	pub fn is_cursor_at_end(&self) -> bool {
 		self.pos == self.inner.len()
@@ -153,10 +152,7 @@ impl<Tape: IndexableCollection> CollectionCursor<Tape> {
 	pub fn seek_to_end(&mut self) {
 		self.pos = self.inner.len();
 	}
-}
 
-// Tape ref operations
-impl<Tape: IndexableCollection> CollectionCursor<Tape> {
 	/// Returns a reference to the element pointed at by the cursor.
 	///
 	/// Returns `None` if `self.position() >= self.get_ref().len()`.
@@ -165,14 +161,7 @@ impl<Tape: IndexableCollection> CollectionCursor<Tape> {
 	}
 }
 
-// Tape mut operations
 impl<Tape: IndexableCollectionMut> CollectionCursor<Tape> {
-	/// Removes all elements within the inner collection, and returns the cursor to the index `0`.
-	pub fn clear(&mut self) {
-		self.inner.clear();
-		self.pos = 0;
-	}
-
 	/// Returns a mutable reference to the element pointed at by the cursor.
 	///
 	/// Returns `None` if the cursor is out-of-bounds.
@@ -187,6 +176,14 @@ impl<Tape: IndexableCollectionMut> CollectionCursor<Tape> {
 	/// inner collection, but will usually occur if `self.position() >= self.get_ref().len()`.
 	pub fn set_item_at_cursor(&mut self, item: Tape::Item) {
 		self.inner.set_item(self.pos, item);
+	}
+}
+
+impl<Tape: IndexableCollectionResizable> CollectionCursor<Tape> {
+	/// Removes all elements within the inner collection, and returns the cursor to the index `0`.
+	pub fn clear(&mut self) {
+		self.inner.clear();
+		self.pos = 0;
 	}
 
 	/// Inserts `item` at the cursor, shifting the following elements to the right by one index.
@@ -282,6 +279,9 @@ pub trait IndexableCollectionMut: IndexableCollection {
 	/// doesn't, then ensure you are following the "rule of least surprise" - whether through
 	/// documentation or otherwise.
 	fn set_item(&mut self, index: usize, element: Self::Item);
+}
+
+pub trait IndexableCollectionResizable: IndexableCollectionMut {
 	/// Inserts an item at a specific index, moving the item at the index and all items after it
 	/// one index forward.
 	///
@@ -452,6 +452,7 @@ mod collection_cursor_tests {
 			"`Current(-current_pos) should move the cursor to the start of the collection",
 		);
 
+		// TODO: De-hardcode the expected results
 		inner(
 			&mut collection,
 			SeekFrom::End(0),
